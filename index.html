@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QA-инструменты для тестировщика</title>
+<style>
+:root {
+  --bg: #0f172a;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --accent: #22c55e;
+  --card: #1e293b;
+  --border: #334155;
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  line-height: 1.5;
+}
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+section { margin: 0 0 40px; }
+h1 { font-size: 1.75rem; line-height: 1.25; margin: 0 0 16px; }
+h2 { font-size: 1.25rem; margin: 0 0 12px; }
+h3 { font-size: 1rem; margin: 16px 0 6px; color: var(--muted); }
+p { margin: 0 0 12px; }
+
+#tool { text-align: center; }
+.lead { color: var(--muted); font-size: 1.125rem; margin: 0 0 20px; }
+textarea {
+  display: block;
+  width: 100%;
+  min-height: 120px;
+  padding: 12px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+  resize: vertical;
+}
+textarea::placeholder { color: var(--muted); }
+button {
+  min-height: 44px;
+  padding: 10px 20px;
+  font: inherit;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+}
+button.primary {
+  background: var(--accent);
+  color: #052e16;
+  border-color: var(--accent);
+  width: 100%;
+  margin-top: 12px;
+}
+[hidden] { display: none !important; }
+#hint { min-height: 1.5em; margin: 8px 0 0; color: var(--muted); }
+#result { text-align: left; margin-top: 16px; }
+#result ul { list-style: none; margin: 0; padding: 0; }
+#result li { padding: 6px 0; border-bottom: 1px solid var(--border); overflow-wrap: anywhere; }
+#result li::before { content: "\2610\00a0"; color: var(--muted); }
+#csv { margin-top: 16px; }
+
+input[type="text"] {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  margin-bottom: 8px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+input::placeholder { color: var(--muted); }
+#rules textarea { min-height: 90px; margin-bottom: 8px; }
+label.field { display: block; margin: 12px 0 4px; font-size: 0.9rem; color: var(--muted); }
+#rules-list { list-style: none; margin: 16px 0 0; padding: 0; }
+#rules-list li {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.note { color: var(--muted); font-size: 0.9rem; }
+#rules-warning { color: #fbbf24; font-size: 0.9rem; }
+#bug textarea { min-height: 90px; }
+#bug select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 10px 12px;
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font: inherit;
+}
+#bug-hint { min-height: 1.5em; margin: 8px 0 0; color: var(--muted); }
+#bug-result { margin-top: 16px; min-height: 200px; }
+#bug-copy, #bug-csv { margin-top: 12px; margin-right: 8px; }
+footer { color: var(--muted); font-size: 0.9rem; padding-top: 8px; border-top: 1px solid var(--border); }
+</style>
+</head>
+<body>
+<main>
+  <section id="tool">
+    <h1>Чек-лист по описанию фичи за секунды</h1>
+    <p class="lead">Чек-листы и баг-репорты из описания фичи. Всё в браузере, данные никуда не уходят.</p>
+    <label for="desc" class="sr" style="position:absolute;left:-9999px">Описание фичи</label>
+    <textarea id="desc" placeholder="Описание фичи, например: форма входа с паролем"></textarea>
+    <button id="build" class="primary" type="button">Собрать чек-лист</button>
+    <p id="hint" role="status"></p>
+    <div id="result"></div>
+    <button id="csv" type="button" hidden>Скачать для Excel (.csv)</button>
+  </section>
+  <section id="bug">
+    <h2>Баг-репорт для Jira и Excel</h2>
+    <p>Заполните поля, получите готовый текст для Jira или файл для Excel.</p>
+    <label class="field" for="bug-title">Заголовок</label>
+    <input type="text" id="bug-title" placeholder="Вход не работает с пустым паролем">
+    <label class="field" for="bug-env">Окружение</label>
+    <input type="text" id="bug-env" placeholder="Chrome 126, Windows 11">
+    <label class="field" for="bug-steps">Шаги, по одному на строку</label>
+    <textarea id="bug-steps" placeholder="Открыть страницу входа&#10;Ввести пустой пароль&#10;Нажать «Войти»"></textarea>
+    <label class="field" for="bug-expected">Ожидаемый результат</label>
+    <textarea id="bug-expected" placeholder="Показана ошибка «Введите пароль»"></textarea>
+    <label class="field" for="bug-actual">Фактический результат</label>
+    <textarea id="bug-actual" placeholder="Пользователь входит в аккаунт"></textarea>
+    <label class="field" for="bug-severity">Серьёзность</label>
+    <select id="bug-severity">
+      <option>Блокирующая</option>
+      <option>Критичная</option>
+      <option selected>Значимая</option>
+      <option>Незначительная</option>
+      <option>Тривиальная</option>
+    </select>
+    <button id="bug-build" class="primary" type="button">Собрать баг-репорт</button>
+    <p id="bug-hint" role="status"></p>
+    <label class="field" for="bug-result" id="bug-result-label" hidden>Готовый баг-репорт</label>
+    <textarea id="bug-result" readonly hidden></textarea>
+    <button id="bug-copy" type="button" hidden>Скопировать</button>
+    <button id="bug-csv" type="button" hidden>Скачать для Excel (.csv)</button>
+  </section>
+  <section id="problem">
+    <h2>Рутина, которую можно не повторять</h2>
+    <p>Чек-листы и тест-кейсы каждый раз собираются с нуля, баг-репорты пишутся руками. Это время уходит на одно и то же.</p>
+    <p>Инструмент выбирает стартовую заготовку по ключевым словам из описания фичи. Вы правите её под проект и добавляете свои проверки.</p>
+    <p>Всё работает в браузере. Описания и правила никуда не отправляются.</p>
+  </section>
+  <section id="rules">
+    <h2>Свои проверки для вашей темы</h2>
+    <p>Встроенные темы знают пароли, формы, оплату и поиск. Если у вас другая тема, например склад, добавьте её сами. Сработает, когда это слово встретится в описании фичи.</p>
+    <label class="field" for="rule-keys">Ключевые слова через запятую</label>
+    <input type="text" id="rule-keys" placeholder="склад, остаток">
+    <label class="field" for="rule-checks">Проверки, по одной на строку</label>
+    <textarea id="rule-checks" placeholder="Остаток не уходит в минус&#10;Приёмка обновляет остаток"></textarea>
+    <p class="note">Хотите ловить любые окончания слова? Поставьте * в конце: склад* найдёт «склад», «склада», «складе». Слово без * ищется целиком.</p>
+    <button id="rule-add" type="button">Добавить</button>
+    <p id="rule-hint" class="note" role="status"></p>
+    <ul id="rules-list"></ul>
+    <p class="note">Правила хранятся только в этом браузере.</p>
+    <p id="rules-warning" role="status" hidden></p>
+  </section>
+  <footer id="footer">Набор маленьких QA-инструментов. Данные остаются в вашем браузере.</footer>
+</main>
+<script id="app">
+// Логика страницы. Чистые функции верхнего уровня; DOM-обвязка внизу.
+
+var DEFAULT_GROUP = 'Общие проверки';
+var DEFAULT_CHECKS = [
+  'Основной сценарий выполняется от начала до конца',
+  'Граничные значения входных данных',
+  'Пустые и некорректные данные',
+  'Сообщения об ошибках понятны и на нужном языке',
+  'Поведение после перезагрузки и повторного действия',
+  'Отображение на разных размерах экрана'
+];
+
+function normalize(text) {
+  return String(text).toLowerCase().replace(/ё/g, 'е').trim();
+}
+
+function tokenize(text) {
+  return normalize(text).split(/[^a-zа-я0-9]+/).filter(Boolean);
+}
+
+// Слово подходит ключу: точное совпадение; для длинных (6+) допускаются окончания до 3 букв;
+// ключ со «*» в конце: любое окончание у последнего слова.
+function tokenMatches(word, tok, anyEnding) {
+  if (anyEnding) return word.indexOf(tok) === 0;
+  if (word === tok) return true;
+  if (tok.length < 6) return false;
+  var base = tok.replace(/ь$/, '');
+  return word.indexOf(base) === 0 && word.length - base.length <= 3;
+}
+
+function keyMatches(words, key) {
+  var k = normalize(key);
+  var star = k.charAt(k.length - 1) === '*';
+  var toks = tokenize(k);
+  if (toks.length === 0) return false;
+  for (var i = 0; i + toks.length <= words.length; i++) {
+    var ok = true;
+    for (var j = 0; j < toks.length && ok; j++) {
+      ok = tokenMatches(words[i + j], toks[j], star && j === toks.length - 1);
+    }
+    if (ok) return true;
+  }
+  return false;
+}
+
+function getRules() {
+  return [
+    { keys: ['парол*', 'password*'], group: 'Пароль', checks: [
+      'Минимальная и максимальная длина пароля',
+      'Пароль маскируется при вводе, есть переключатель показа',
+      'Неверный пароль даёт понятную ошибку без раскрытия, что именно неверно',
+      'Спецсимволы, пробелы и юникод в пароле',
+      'Сброс и смена пароля'
+    ] },
+    { keys: ['форма', 'формы', 'форме', 'форму', 'формой', 'form', 'forms', 'анкета'], group: 'Форма', checks: [
+      'Отправка с пустыми обязательными полями',
+      'Подсветка и текст ошибок у каждого поля',
+      'Данные сохраняются при ошибке валидации',
+      'Повторная отправка (двойной клик) не создаёт дубль',
+      'Навигация с клавиатуры: Tab и Enter'
+    ] },
+    { keys: ['поле', 'поля', 'полей', 'полю', 'ввод', 'ввода', 'вводе', 'input', 'inputs'], group: 'Поля ввода', checks: [
+      'Пустое значение',
+      'Очень длинное значение',
+      'Пробелы в начале и конце',
+      'Спецсимволы и HTML-теги',
+      'Вставка из буфера обмена'
+    ] },
+    { keys: ['файл*', 'загруз*', 'upload*'], group: 'Загрузка файла', checks: [
+      'Допустимые и недопустимые форматы',
+      'Файл максимального размера и больше',
+      'Пустой файл и файл с русским именем',
+      'Отмена и обрыв загрузки',
+      'Повторная загрузка того же файла'
+    ] },
+    { keys: ['оплат*', 'платеж*', 'payment*', 'карта', 'карты', 'карту', 'картой'], group: 'Оплата', checks: [
+      'Успешная оплата и подтверждение',
+      'Отказ банка и недостаточно средств',
+      'Повторное нажатие «Оплатить» не списывает дважды',
+      'Некорректный номер карты и срок действия',
+      'Возврат и отмена платежа',
+      'Сумма и валюта отображаются верно'
+    ] },
+    { keys: ['поиск*', 'search*', 'фильтр*'], group: 'Поиск и фильтры', checks: [
+      'Пустой запрос',
+      'Запрос без результатов',
+      'Регистр и спецсимволы в запросе',
+      'Сочетание нескольких фильтров',
+      'Сброс фильтров'
+    ] },
+    { keys: ['вход', 'входа', 'входе', 'входу', 'логин*', 'авториз*', 'login*'], group: 'Авторизация', checks: [
+      'Вход с верными данными',
+      'Вход с неверным логином или паролем',
+      'Блокировка после нескольких неудачных попыток',
+      'Сессия после закрытия вкладки и выхода',
+      'Доступ к закрытым страницам без входа'
+    ] },
+    { keys: ['регистрац*', 'signup', 'sign up', 'аккаунт*'], group: 'Регистрация', checks: [
+      'Регистрация с уже существующей почтой',
+      'Проверка формата почты и телефона',
+      'Подтверждение почты и повторная отправка письма',
+      'Обязательные согласия',
+      'Первый вход после регистрации'
+    ] },
+    { keys: ['список*', 'таблиц*', 'пагинац*', 'pagination'], group: 'Списки и таблицы', checks: [
+      'Пустой список',
+      'Один элемент и очень много элементов',
+      'Сортировка и постраничный вывод',
+      'Длинные значения в ячейках',
+      'Обновление списка после изменения данных'
+    ] },
+    { keys: ['уведомл*', 'email', 'e-mail', 'письм*', 'notification*'], group: 'Уведомления', checks: [
+      'Уведомление приходит один раз',
+      'Текст и тема без ошибок и пустых подстановок',
+      'Отключение уведомлений',
+      'Поведение при недоступной почте или сети'
+    ] }
+  ];
+}
+
+function matchRules(description, rules) {
+  var words = tokenize(description);
+  return rules.filter(function (rule) {
+    return rule.keys.some(function (key) { return keyMatches(words, key); });
+  });
+}
+
+function buildChecklist(description, customRules) {
+  if (!normalize(description)) return { items: [], usedDefault: false };
+  var matched = matchRules(description, getRules().concat(customRules || []));
+  var seen = Object.create(null);
+  var items = [];
+  function add(group, text) {
+    var k = group + '\u0000' + text;
+    if (seen[k]) return;
+    seen[k] = true;
+    items.push({ group: group, text: text });
+  }
+  matched.forEach(function (rule) {
+    rule.checks.forEach(function (c) { add(rule.group, c); });
+  });
+  if (items.length === 0) {
+    DEFAULT_CHECKS.forEach(function (c) { add(DEFAULT_GROUP, c); });
+    return { items: items, usedDefault: true };
+  }
+  return { items: items, usedDefault: false };
+}
+
+function csvCell(value) {
+  var s = String(value);
+  if (/^[=+\-@]/.test(s)) s = "'" + s;
+  if (/[;"\r\n]/.test(s)) s = '"' + s.replace(/"/g, '""') + '"';
+  return s;
+}
+
+function toCsv(items) {
+  var lines = ['№;Группа;Проверка;Статус'];
+  items.forEach(function (it, i) {
+    lines.push([i + 1, csvCell(it.group), csvCell(it.text), 'не проверено'].join(';'));
+  });
+  return '﻿' + lines.join('\r\n') + '\r\n';
+}
+
+function bugSteps(steps) {
+  return String(steps).split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+}
+
+function isBugReportComplete(f) {
+  return String(f.title).trim() !== '' && String(f.actual).trim() !== '' && bugSteps(f.steps).length > 0;
+}
+
+function buildBugReportText(f) {
+  var lines = ['Заголовок: ' + String(f.title).trim(), 'Серьёзность: ' + f.severity];
+  var env = String(f.env).trim();
+  var expected = String(f.expected).trim();
+  if (env) lines.push('Окружение: ' + env);
+  lines.push('', 'Шаги:');
+  bugSteps(f.steps).forEach(function (s, i) { lines.push((i + 1) + '. ' + s); });
+  lines.push('');
+  if (expected) lines.push('Ожидаемый результат: ' + expected);
+  lines.push('Фактический результат: ' + String(f.actual).trim());
+  return lines.join('\n');
+}
+
+function bugReportToCsv(f) {
+  var steps = bugSteps(f.steps).map(function (s, i) { return (i + 1) + '. ' + s; }).join('\n');
+  var row = [String(f.title).trim(), f.severity, String(f.env).trim(), steps, String(f.expected).trim(), String(f.actual).trim()];
+  return '﻿' + ['Заголовок;Серьёзность;Окружение;Шаги;Ожидаемый результат;Фактический результат',
+    row.map(csvCell).join(';')].join('\r\n') + '\r\n';
+}
+
+var RULES_KEY = 'qa-custom-rules';
+
+function parseRuleInput(keysText, checksText) {
+  var keys = String(keysText).split(',').map(normalize).filter(Boolean);
+  var checks = String(checksText).split(/\r?\n/).map(function (s) { return s.trim(); }).filter(Boolean);
+  if (keys.length === 0 || checks.length === 0) return null;
+  return { keys: keys, group: keys[0], checks: checks };
+}
+
+function defaultStorage() {
+  try { return typeof localStorage !== 'undefined' ? localStorage : null; } catch (e) { return null; }
+}
+
+function loadCustomRules(storage) {
+  try {
+    var st = storage || defaultStorage();
+    if (!st) return [];
+    var raw = st.getItem(RULES_KEY);
+    if (!raw) return [];
+    var data = JSON.parse(raw);
+    if (!Array.isArray(data)) return [];
+    return data.filter(function (r) {
+      return r && Array.isArray(r.keys) && typeof r.group === 'string' && Array.isArray(r.checks);
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+function saveCustomRules(rules, storage) {
+  try {
+    var st = storage || defaultStorage();
+    if (!st) return false;
+    st.setItem(RULES_KEY, JSON.stringify(rules));
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+// ---- DOM-обвязка ----
+function renderResult(container, items) {
+  container.textContent = '';
+  var groups = [];
+  var byGroup = Object.create(null);
+  items.forEach(function (it) {
+    if (!byGroup[it.group]) { byGroup[it.group] = []; groups.push(it.group); }
+    byGroup[it.group].push(it.text);
+  });
+  groups.forEach(function (g) {
+    var h = document.createElement('h3');
+    h.textContent = g;
+    var ul = document.createElement('ul');
+    byGroup[g].forEach(function (t) {
+      var li = document.createElement('li');
+      li.textContent = t;
+      ul.appendChild(li);
+    });
+    container.appendChild(h);
+    container.appendChild(ul);
+  });
+}
+
+function downloadText(filename, text) {
+  var blob = new Blob([text], { type: 'text/csv;charset=utf-8' });
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(function () { URL.revokeObjectURL(url); }, 0);
+}
+
+function downloadCsv(items) {
+  downloadText('checklist.csv', toCsv(items));
+}
+
+var currentItems = [];
+var customRules = [];
+var warned = false;
+
+function persistRules() {
+  if (!saveCustomRules(customRules) && !warned) {
+    warned = true;
+    var w = document.getElementById('rules-warning');
+    w.textContent = 'Браузер не даёт сохранять данные: правила работают, пока страница открыта.';
+    w.hidden = false;
+  }
+}
+
+function renderRules() {
+  var ul = document.getElementById('rules-list');
+  ul.textContent = '';
+  customRules.forEach(function (rule, i) {
+    var li = document.createElement('li');
+    var span = document.createElement('span');
+    span.textContent = rule.keys.join(', ') + ': ' + rule.checks.length + ' проверок';
+    var del = document.createElement('button');
+    del.type = 'button';
+    del.textContent = 'Удалить';
+    del.addEventListener('click', function () {
+      customRules.splice(i, 1);
+      persistRules();
+      renderRules();
+    });
+    li.appendChild(span);
+    li.appendChild(del);
+    ul.appendChild(li);
+  });
+}
+
+function onAddRule() {
+  var hint = document.getElementById('rule-hint');
+  var rule = parseRuleInput(document.getElementById('rule-keys').value, document.getElementById('rule-checks').value);
+  if (!rule) {
+    hint.textContent = 'Нужны хотя бы одно ключевое слово и одна проверка';
+    return;
+  }
+  customRules.push(rule);
+  persistRules();
+  renderRules();
+  hint.textContent = '';
+  document.getElementById('rule-keys').value = '';
+  document.getElementById('rule-checks').value = '';
+}
+
+function onBuild() {
+  var desc = document.getElementById('desc').value;
+  var hint = document.getElementById('hint');
+  var csvBtn = document.getElementById('csv');
+  var result = buildChecklist(desc, customRules);
+  currentItems = result.items;
+  renderResult(document.getElementById('result'), currentItems);
+  csvBtn.hidden = currentItems.length === 0;
+  if (currentItems.length === 0) hint.textContent = 'Опишите фичу';
+  else if (result.usedDefault) hint.textContent = 'Нет подходящих ключевых слов, показан общий набор';
+  else hint.textContent = '';
+}
+
+function readBugForm() {
+  function v(id) { return document.getElementById(id).value; }
+  return { title: v('bug-title'), env: v('bug-env'), steps: v('bug-steps'),
+    expected: v('bug-expected'), actual: v('bug-actual'), severity: v('bug-severity') };
+}
+
+function setBugResultVisible(visible) {
+  ['bug-result-label', 'bug-result', 'bug-copy', 'bug-csv'].forEach(function (id) {
+    document.getElementById(id).hidden = !visible;
+  });
+}
+
+// Любая правка формы делает результат устаревшим: скрываем и очищаем его.
+function resetBugResult() {
+  setBugResultVisible(false);
+  document.getElementById('bug-result').value = '';
+  document.getElementById('bug-hint').textContent = '';
+}
+
+function onBugBuild() {
+  var f = readBugForm();
+  var hint = document.getElementById('bug-hint');
+  if (!isBugReportComplete(f)) {
+    hint.textContent = 'Заполните заголовок, шаги и фактический результат';
+    setBugResultVisible(false);
+    return;
+  }
+  hint.textContent = '';
+  document.getElementById('bug-result').value = buildBugReportText(f);
+  setBugResultVisible(true);
+}
+
+function onBugCopy() {
+  var field = document.getElementById('bug-result');
+  var hint = document.getElementById('bug-hint');
+  function fallback() {
+    field.select();
+    hint.textContent = 'Выделено, нажмите Ctrl+C';
+  }
+  try {
+    if (!navigator.clipboard || !navigator.clipboard.writeText) { fallback(); return; }
+    navigator.clipboard.writeText(field.value).then(function () {
+      hint.textContent = 'Скопировано';
+    }, fallback);
+  } catch (e) {
+    fallback();
+  }
+}
+
+if (typeof document !== 'undefined') {
+  customRules = loadCustomRules();
+  renderRules();
+  document.getElementById('rule-add').addEventListener('click', onAddRule);
+  document.getElementById('build').addEventListener('click', onBuild);
+  document.getElementById('csv').addEventListener('click', function () { downloadCsv(currentItems); });
+  ['bug-title', 'bug-env', 'bug-steps', 'bug-expected', 'bug-actual', 'bug-severity'].forEach(function (id) {
+    var el = document.getElementById(id);
+    el.addEventListener('input', resetBugResult);
+    el.addEventListener('change', resetBugResult);
+  });
+  document.getElementById('bug-build').addEventListener('click', onBugBuild);
+  document.getElementById('bug-copy').addEventListener('click', onBugCopy);
+  document.getElementById('bug-csv').addEventListener('click', function () {
+    downloadText('bug-report.csv', bugReportToCsv(readBugForm()));
+  });
+}
+</script>
+</body>
+</html>
